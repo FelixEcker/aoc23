@@ -9,17 +9,69 @@ var
   in_fl: TextFile;
   inval: String;
   map: String;
-  part_positions: array of array of Int64;
+  gear_posi: array of array of Int64;
 
 function is_digit(const b: Byte): Boolean;
 begin
   is_digit := (b <= Byte('9')) and (b >= Byte('0'));
 end;
 
-procedure save_part_pos(const x: Int64; const y: Int64);
+procedure save_gear_pos(const x: Int64; const y: Int64; const num: Int64);
 begin
-  SetLength(part_positions, Length(part_positions) + 1);
-  part_positions[HIGH(part_positions)] := [x, y];
+  SetLength(gear_posi, Length(gear_posi) + 1);
+  gear_posi[HIGH(gear_posi)] := [x, y, num];
+end;
+
+function get_ratio_sum: Int64;
+var
+  ix, ix2, x, y, gear2: Int64;
+  skip: Boolean;
+  ignore: array of Int64;
+begin
+  get_ratio_sum := 0;
+
+  SetLength(ignore, 0);
+  for ix := 0 to Length(gear_posi) - 1 do
+  begin
+    for ix2 := 0 to Length(ignore) - 1 do
+    begin
+      if ix = ignore[ix2] then
+      begin
+        skip := True;
+        break;
+      end;
+    end;
+
+    if skip then
+    begin
+      skip := False;
+      continue;
+    end;
+
+    skip := True;
+
+    x := gear_posi[ix][0];
+    y := gear_posi[ix][1];
+    for ix2 := 0 to Length(gear_posi) - 1 do
+    begin
+      if (ix <> ix2) and (gear_posi[ix2][0] = x) and (gear_posi[ix2][1] = y) then
+      begin
+        SetLength(ignore, Length(ignore) + 1);
+        ignore[HIGH(ignore)] := ix2;
+        gear2 := gear_posi[ix2][2];
+        skip := False;
+        break;
+      end;
+    end;
+
+    if skip then
+    begin
+      skip := False;
+      continue;
+    end;
+
+    get_ratio_sum := get_ratio_sum + (gear2 * gear_posi[ix][2]);
+  end;
 end;
 
 function find_part(const rows: TStringDynArray; const partnum: Int64; const ox: Int64; const oy: Int64; const digits: Integer): Int64;
@@ -38,7 +90,8 @@ begin
       if (rows[y][x] <> '.') and not is_digit(Byte(rows[y][x])) then
       begin
         if (Byte(rows[y][x]) < 32) then continue;
-        save_part_pos(x, y);
+        if (rows[y][x] = '*') then
+          save_gear_pos(x, y, partnum);
         exit(partnum);
       end;
     end;
@@ -99,4 +152,5 @@ begin
   end;
   Close(in_fl);
   writeln(solve(map));
+  writeln(get_ratio_sum());
 end.
