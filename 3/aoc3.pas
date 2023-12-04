@@ -16,12 +16,6 @@ begin
   is_digit := (b <= Byte('9')) and (b >= Byte('0'));
 end;
 
-function check_duplicate(const x: Int64; const y: Int64): Boolean;
-var
-  x
-begin
-end;
-
 procedure save_part_pos(const x: Int64; const y: Int64);
 begin
   SetLength(part_positions, Length(part_positions) + 1);
@@ -32,6 +26,7 @@ function find_part(const rows: TStringDynArray; const partnum: Int64; const ox: 
 var
   x, y: Int64;
 begin
+  find_part := 0;
   for y := oy - 1 to oy + 1 do
   begin
     if y < 0 then continue;
@@ -42,23 +37,25 @@ begin
       if x >= Length(rows[y]) then break;
       if (rows[y][x] <> '.') and not is_digit(Byte(rows[y][x])) then
       begin
+        if (Byte(rows[y][x]) < 32) then continue;
         save_part_pos(x, y);
         exit(partnum);
       end;
     end;
   end;
-  exit;
 end;
 
 function solve(const map: String): Int64;
 var
   rows: TStringDynArray;
-  x, y, curnum: Int64;
-  num_start: Int64;
+  x, y, cpy_x, curnum: Int64;
+  prev, num_start: Int64;
   parse_num: Boolean;
 begin
   solve := 0;
   rows := SplitString(map, sLineBreak);
+  parse_num := False;
+  num_start := 0;
   for y := 0 to Length(rows) - 1 do
   begin
     for x := 1 to Length(rows[y]) do
@@ -67,10 +64,17 @@ begin
       begin
         if parse_num then
         begin
+          if is_digit(Byte(rows[y][x])) and (x = Length(rows[y])) then 
+            cpy_x := x + 1
+          else
+            cpy_x := x;
+
           parse_num := False;
-          curnum := StrToInt(Copy(rows[y], num_start, x - num_start));
-          solve := solve + find_part(rows, curnum, num_start, y, x - num_start);
+          curnum := StrToInt(Copy(rows[y], num_start, cpy_x - num_start));
+          prev := solve;
+          solve := solve + find_part(rows, curnum, num_start, y, cpy_x - num_start);
         end;
+
         continue;
       end;
 
