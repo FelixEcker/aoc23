@@ -1,14 +1,31 @@
 {$mode fpc}
-{$RANGECHECK OFF}
 program aoc3;
 
 uses SysUtils, StrUtils, Types;
 
 {$H+}
 
+var
+  in_fl: TextFile;
+  inval: String;
+  map: String;
+  part_positions: array of array of Int64;
+
 function is_digit(const b: Byte): Boolean;
 begin
   is_digit := (b <= Byte('9')) and (b >= Byte('0'));
+end;
+
+function check_duplicate(const x: Int64; const y: Int64): Boolean;
+var
+  x
+begin
+end;
+
+procedure save_part_pos(const x: Int64; const y: Int64);
+begin
+  SetLength(part_positions, Length(part_positions) + 1);
+  part_positions[HIGH(part_positions)] := [x, y];
 end;
 
 function find_part(const rows: TStringDynArray; const partnum: Int64; const ox: Int64; const oy: Int64; const digits: Integer): Int64;
@@ -23,16 +40,14 @@ begin
     begin
       if x < 0 then continue;
       if x >= Length(rows[y]) then break;
-      if (rows[y][x] <> '.') then
+      if (rows[y][x] <> '.') and not is_digit(Byte(rows[y][x])) then
       begin
-        if not is_digit(Byte(rows[y][x])) then
-        begin
-          exit(partnum);
-        end;
+        save_part_pos(x, y);
+        exit(partnum);
       end;
     end;
   end;
-  exit(0);
+  exit;
 end;
 
 function solve(const map: String): Int64;
@@ -68,10 +83,6 @@ begin
   end;
 end;
 
-var
-  in_fl: TextFile;
-  inval: String;
-  map: String;
 begin
   Assign(in_fl, 'input');
   ReSet(in_fl);
