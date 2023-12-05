@@ -7,7 +7,7 @@ program aoc5.part2;
   get it done, I just decided to give each seed range a thread for solving.
   This still takes ages (~25 minutes) and is really stupid. Maybe I wont be able
   to live with myself because of creating this solution and create a better one
-  which is actually fast. Maybe I wont. }
+  which is actually fast. Maybe I wont.}
 
 uses cthreads, Crt, SysUtils, StrUtils, Types;
 
@@ -152,14 +152,12 @@ begin
   parse_range(map, _str);
 end;
 
-function get_dest(const map: TMap; const key: UInt64): TUInt64DynArray;
+function get_dest(const map: TMap; const key: UInt64): UInt64;
 var
   dest: TRangeDynArray;
   range: TRange;
-  matches: UInt64;
   found: Boolean;
 begin
-  get_dest := [key];
   case map.mapdest of
     mdSOIL: dest := map.soil;
     mdFERT: dest := map.fert;
@@ -170,54 +168,16 @@ begin
     mdLOC: dest := map.loc;
   end;
 
-  matches := 0;
+  get_dest := key;
   for range in dest do
   begin
     { If key is outside the range fuck off }
     if (range.org > key) then continue;
     if (range.org + range.len - 1) < key then continue;
 
-    matches := matches + 1;
-    SetLength(get_dest, matches);
-    get_dest[HIGH(get_dest)] := range.dest + (key - range.org);
+    get_dest := range.dest + (key - range.org);
     break;
   end;
-end;
-
-function sub_solve(map: TMap; const start: TMapDest; const key: UInt64): UInt64;
-var
-  tmp, tmp2, tmp3, ix: UInt64;
-  results: TUInt64DynArray;
-  dest: TMapDest;
-  first, first_sub, check2: Boolean;
-begin
-  first := True;
-  for dest := start to mdLOC do
-  begin
-    map.mapdest := dest;
-    results := get_dest(map, tmp);
-    tmp := results[0];
-
-    if Length(results) > 1 then
-    begin
-      check2 := True;
-      first_sub := True;
-      for ix := 1 to Length(results) - 1 do
-      begin
-        tmp3 := sub_solve(map, TMapDest(Int64(dest) + 1), results[ix]);
-        if (tmp2 > tmp3) or first_sub then
-          tmp2 := tmp3;
-        first_sub := False;
-      end;
-    end;
-    if (tmp < sub_solve) or first then
-      sub_solve := tmp;
-    if check2 and (tmp2 < sub_solve) then
-      sub_solve := tmp2;
-  end;
-  
-
-  first := False;
 end;
 
 function make_range(const start: UInt64; const _end: UInt64): TUInt64DynArray;
@@ -233,10 +193,10 @@ function crunch(p: Pointer): Int64;
 var
   thread_data: TThreadData;
   map: TMap;
-  solve, seed, seedix, tmp, tmp2, tmp3, ix: UInt64;
-  seeds, results: TUInt64DynArray;
+  solve, seed, seedix, tmp: UInt64;
+  seeds: TUInt64DynArray;
   dest: TMapDest;
-  first, first_sub, check2: Boolean;
+  first: Boolean;
 begin
   solve := 0;
   first := True;
@@ -248,33 +208,14 @@ begin
   for seed in seeds do
   begin
     tmp := seed;
-    check2 := False;
     for dest := mdSOIL to mdLOC do
     begin
       map.mapdest := dest;
-      results := get_dest(map, tmp);
-      tmp := results[0];
-
-      { Consider overlapping ranges by recursively sub-solving.
-        Got a bit hacky out of desperation }
-      if Length(results) > 1 then
-      begin
-        check2 := True;
-        first_sub := True;
-        for ix := 1 to Length(results) - 1 do
-        begin
-          tmp3 := sub_solve(map, TMapDest(Int64(dest) + 1), results[ix]);
-          if (tmp2 > tmp3) or first_sub then
-            tmp2 := tmp3;
-          first_sub := False;
-        end;
-      end;
+      tmp := get_dest(map, tmp);
     end;
 
     if (tmp < solve) or first then
       solve := tmp;
-    if check2 and (tmp2 < solve) then
-      solve := tmp2;
 
     first := False;
   end;
@@ -283,6 +224,8 @@ begin
   SetLength(thread_results, Length(thread_results) + 1);
   thread_results[HIGH(thread_results)] := solve;
   LeaveCriticalSection(critical);
+  Dispose(p);
+  writeln('thread done!');
 end;
 
 function solve(map: TMap): UInt64;
@@ -296,6 +239,7 @@ begin
   SetLength(thread_results, 0);
   for i := 0 to nthreads - 1 do
   begin
+    { This leaks memory, too bad! (?) }
     New(thread_data);
     thread_data^.map := map;
     thread_data^.start := map.seeds[i * 2];
