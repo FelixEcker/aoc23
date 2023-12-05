@@ -134,14 +134,13 @@ begin
   parse_range(map, _str);
 end;
 
-function get_dest(const map: TMap; const key: UInt64): TUInt64DynArray;
+function get_dest(const map: TMap; const key: UInt64): UInt64;
 var
   dest: TRangeDynArray;
   range: TRange;
-  matches: UInt64;
   found: Boolean;
 begin
-  get_dest := [key];
+  get_dest := key;
   case map.mapdest of
     mdSOIL: dest := map.soil;
     mdFERT: dest := map.fert;
@@ -152,60 +151,20 @@ begin
     mdLOC: dest := map.loc;
   end;
 
-  matches := 0;
   for range in dest do
   begin
     { If key is outside the range fuck off }
     if (range.org > key) then continue;
     if (range.org + range.len - 1) < key then continue;
 
-    matches := matches + 1;
-    SetLength(get_dest, matches);
-    get_dest[HIGH(get_dest)] := range.dest + (key - range.org);
+    get_dest := range.dest + (key - range.org);
+    break;
   end;
-  writeln(matches);
-end;
-
-function sub_solve(map: TMap; const start: TMapDest; const key: UInt64): UInt64;
-var
-  tmp, tmp2, tmp3, ix: UInt64;
-  results: TUInt64DynArray;
-  dest: TMapDest;
-  first, first_sub, check2: Boolean;
-begin
-  writeln('subsolve');
-  first := True;
-  for dest := start to mdLOC do
-  begin
-    map.mapdest := dest;
-    results := get_dest(map, tmp);
-    tmp := results[0];
-
-    if Length(results) > 1 then
-    begin
-      check2 := True;
-      first_sub := True;
-      for ix := 1 to Length(results) - 1 do
-      begin
-        tmp3 := sub_solve(map, TMapDest(Int64(dest) + 1), results[ix]);
-        if (tmp2 > tmp3) or first_sub then
-          tmp2 := tmp3;
-        first_sub := False;
-      end;
-    end;
-    if (tmp < sub_solve) or first then
-      sub_solve := tmp;
-    if check2 and (tmp2 < sub_solve) then
-      sub_solve := tmp2;
-  end;
-  
-
-  first := False;
 end;
 
 function solve(map: TMap): UInt64;
 var
-  seed, tmp, tmp2, tmp3, ix: UInt64;
+  seed, tmp: UInt64;
   results: TUInt64DynArray;
   dest: TMapDest;
   first, first_sub, check2: Boolean;
@@ -216,33 +175,14 @@ begin
   for seed in map.seeds do
   begin
     tmp := seed;
-    check2 := False;
     for dest := mdSOIL to mdLOC do
     begin
       map.mapdest := dest;
-      results := get_dest(map, tmp);
-      tmp := results[0];
-
-      { Consider overlapping ranges by recursively sub-solving.
-        Got a bit hacky out of desperation }
-      if Length(results) > 1 then
-      begin
-        check2 := True;
-        first_sub := True;
-        for ix := 1 to Length(results) - 1 do
-        begin
-          tmp3 := sub_solve(map, TMapDest(Int64(dest) + 1), results[ix]);
-          if (tmp2 > tmp3) or first_sub then
-            tmp2 := tmp3;
-          first_sub := False;
-        end;
-      end;
+      tmp := get_dest(map, tmp);
     end;
 
     if (tmp < solve) or first then
       solve := tmp;
-    if check2 and (tmp2 < solve) then
-      solve := tmp2;
 
     first := False;
   end;
