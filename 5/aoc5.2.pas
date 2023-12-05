@@ -3,6 +3,12 @@ program aoc5.part2;
 
 {$H+}
 
+{ This is probably one of my least favorite solutions. Because I just wanted to
+  get it done, I just decided to give each seed range a thread for solving.
+  This still takes ages (~25 minutes) and is really stupid. Maybe I wont be able
+  to live with myself because of creating this solution and create a better one
+  which is actually fast. Maybe I wont. }
+
 uses cthreads, Crt, SysUtils, StrUtils, Types;
 
 type 
