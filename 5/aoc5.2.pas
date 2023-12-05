@@ -1,9 +1,9 @@
 {$mode objfpc}
-program aoc5;
+program aoc5.part2;
 
 {$H+}
 
-uses SysUtils, StrUtils, Types;
+uses cthreads, Crt, SysUtils, StrUtils, Types;
 
 type 
   TUInt64DynArray = array of UInt64;
@@ -32,6 +32,18 @@ type
 
     mapdest: TMapDest;
   end;
+
+  TThreadData = record
+    map: TMap;
+    start: UInt64;
+    amount: UInt64;
+  end;
+
+  PThreadData = ^TThreadData;
+
+var
+  critical: TRTLCriticalSection;
+  thread_results: TUInt64DynArray;
 
 function is_digit(const c: Char): Boolean;
 begin
@@ -162,8 +174,8 @@ begin
     matches := matches + 1;
     SetLength(get_dest, matches);
     get_dest[HIGH(get_dest)] := range.dest + (key - range.org);
+    break;
   end;
-  writeln(matches);
 end;
 
 function sub_solve(map: TMap; const start: TMapDest; const key: UInt64): UInt64;
@@ -173,7 +185,6 @@ var
   dest: TMapDest;
   first, first_sub, check2: Boolean;
 begin
-  writeln('subsolve');
   first := True;
   for dest := start to mdLOC do
   begin
@@ -203,17 +214,32 @@ begin
   first := False;
 end;
 
-function solve(map: TMap): UInt64;
+function make_range(const start: UInt64; const _end: UInt64): TUInt64DynArray;
 var
-  seed, tmp, tmp2, tmp3, ix: UInt64;
-  results: TUInt64DynArray;
+  ix: UInt64;
+begin
+  SetLength(make_range, _end);
+  for ix := 0 to Length(make_range) - 1 do
+    make_range[ix] := start + ix;
+end;
+
+function crunch(p: Pointer): Int64;
+var
+  thread_data: TThreadData;
+  map: TMap;
+  solve, seed, seedix, tmp, tmp2, tmp3, ix: UInt64;
+  seeds, results: TUInt64DynArray;
   dest: TMapDest;
   first, first_sub, check2: Boolean;
 begin
   solve := 0;
   first := True;
 
-  for seed in map.seeds do
+  thread_data := PThreadData(p)^;
+  map := thread_data.map;
+
+  seeds := make_range(thread_data.start, thread_data.amount);
+  for seed in seeds do
   begin
     tmp := seed;
     check2 := False;
@@ -246,6 +272,49 @@ begin
 
     first := False;
   end;
+
+  EnterCriticalSection(critical);
+  SetLength(thread_results, Length(thread_results) + 1);
+  thread_results[HIGH(thread_results)] := solve;
+  LeaveCriticalSection(critical);
+end;
+
+function solve(map: TMap): UInt64;
+var
+  nthreads, i: Integer;
+  thread_data: PThreadData;
+begin
+  InitCriticalSection(critical);
+  nthreads := Length(map.seeds) div 2;
+  writeln('crunching with ', nthreads, ' threads!');
+  SetLength(thread_results, 0);
+  for i := 0 to nthreads - 1 do
+  begin
+    New(thread_data);
+    thread_data^.map := map;
+    thread_data^.start := map.seeds[i * 2];
+    thread_data^.amount := map.seeds[(i * 2) + 1];
+    BeginThread(@crunch, thread_data);
+  end;
+
+  while True do
+  begin
+    EnterCriticalSection(critical);
+    if Length(thread_results) = nthreads then
+    begin
+      LeaveCriticalSection(critical);
+      delay(100);
+      break;
+    end;
+    LeaveCriticalSection(critical);
+    delay(100);
+  end;
+  DoneCriticalSection(critical);
+
+  solve := thread_results[0];
+  for i := 1 to Length(thread_results) - 1 do
+    if thread_results[i] < solve then
+      solve := thread_results[i];
 end;
 
 var
