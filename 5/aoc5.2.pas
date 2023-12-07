@@ -224,8 +224,7 @@ begin
   SetLength(thread_results, Length(thread_results) + 1);
   thread_results[HIGH(thread_results)] := solve;
   LeaveCriticalSection(critical);
-  Dispose(p);
-  writeln('thread done!');
+  writeln('thread done!'#13);
 end;
 
 function solve(map: TMap): UInt64;
@@ -235,7 +234,7 @@ var
 begin
   InitCriticalSection(critical);
   nthreads := Length(map.seeds) div 2;
-  writeln('crunching with ', nthreads, ' threads!');
+  writeln('crunching with ', nthreads, ' threads!'#13);
   SetLength(thread_results, 0);
   for i := 0 to nthreads - 1 do
   begin
